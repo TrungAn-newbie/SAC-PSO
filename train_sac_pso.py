@@ -83,8 +83,8 @@ def train_sac_pso(
     suite = generate_training_suite(30)
     print(f"Generated {len(suite)} diverse warehouse instances for RL training.")
 
-    agent = SACAgent(state_dim=12, action_dim=6, lr=3e-4, gamma=0.95, device=device)
-    replay_buffer = SACReplayBuffer(state_dim=12, action_dim=6, capacity=40000)
+    agent = SACAgent(state_dim=14, action_dim=6, lr=3e-4, gamma=0.95, device=device)
+    replay_buffer = SACReplayBuffer(state_dim=14, action_dim=6, capacity=40000)
 
     # Pre-populate replay buffer with random exploration steps
     print("\nWarmup: Collecting initial transitions into replay buffer...")
