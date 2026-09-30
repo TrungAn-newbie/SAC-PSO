@@ -37,7 +37,7 @@ Coding/
 ├── sac_pso.py                        # SAC-PSO: Soft Actor-Critic điều khiển động Standard PSO
 ├── train_sac_pso.py                  # Pipeline huấn luyện SAC trên tập 30+ instances đa quy mô
 ├── benchmark_experiment.py           # Thử nghiệm độc lập 5 runs trên cả 4 Scenarios (1, 2, 3, 4)
-├── 30_9_2026.py                      # Entry point thực thi chính
+├── main.py                           # Entry point thực thi chính
 └── README.md
 ```
 
@@ -131,8 +131,9 @@ Kết quả đo đạc chính xác trên 4 Scenarios chuẩn của bài báo kho
 
 Chạy trực tiếp toàn bộ benchmark đối sánh và tự động xuất bảng kết quả & biểu đồ:
 ```bash
-python benchmark_experiment.py
+python main.py
 ```
+*(Hoặc chạy trực tiếp file module `python benchmark_experiment.py`)*
 
 Huấn luyện lại mô hình SAC trên tập 30+ instance mở rộng:
 ```bash
