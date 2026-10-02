@@ -1,20 +1,25 @@
 # JSSPLA: Job Shop Scheduling with Limited AMRs in Smart Warehouse
-### Deep Reinforcement Learning (Soft Actor-Critic) Meta-Optimization for Standard PSO (SAC-PSO) vs PSO, GA, CDPSO, FIFO, SPT, LPT
+### Deep Reinforcement Learning (Soft Actor-Critic) Meta-Optimization for Standard PSO (SAC-PSO) vs Standard PSO, GA, FIFO, SPT, LPT
 
-> Dựa trên đề tài nghiên cứu: *"Job Shop-Based Scheduling Optimization for Multi-AMR Warehouse Systems and Validation via Gazebo Simulation"*  
-> **Supervisor**: Dr. Truong Ngoc Cuong | **Student**: Tran Viet Trung An (MAIL LAB)
+> **Đề tài nghiên cứu**: *"Job Shop-Based Scheduling Optimization for Multi-AMR Warehouse Systems and Validation via Gazebo Simulation"*  
+> **Supervisor**: Dr. Truong Ngoc Cuong  
+> **Student**: Tran Viet Trung An (MAIL LAB)
 
 ---
 
 ## 1. Tổng quan Bài toán JSSPLA trong Kho Thông Minh
 
-Hệ thống kho hàng diện tích $33.0\text{m} \times 16.5\text{m}$ vận hành đội 8 robot tự hành (AMR) phục vụ 4 cụm kệ hàng ($R_1, R_2, R_3, R_4$) và các trạm chức năng:
+Hệ thống kho hàng tự động diện tích $33.0\text{m} \times 16.5\text{m}$ vận hành đội 8 robot tự hành (AMR) phục vụ 4 cụm kệ hàng ($R_1, R_2, R_3, R_4$) và các trạm chức năng:
 - **Trạm nhận & kiểm tra hàng**: Receiving $\to$ Buffer 1
 - **Khu vực lưu trữ trung tâm**: 4 cụm kệ $R_1, R_2, R_3, R_4$
 - **Trạm hạ nguồn**: Picking (lấy hàng) $\to$ Packing (đóng gói) $\to$ Buffer 2 $\to$ Shipping (xuất xưởng)
 - **Trạm sạc tự động**: Automated Charging Station
 - **Chính sách phân đội chuyên trách (Dedicated Sub-fleet Policy)**: Mỗi cụm kệ $k \in \{1, 2, 3, 4\}$ được giao đúng 2 robot cố định ($R_1 \to [0, 1]$, $R_2 \to [2, 3]$, $R_3 \to [4, 5]$, $R_4 \to [6, 7]$). Mọi tác vụ vận chuyển đơn hàng thuộc cụm đó bắt buộc do 1 trong 2 robot này thực hiện.
-- **Ràng buộc thời gian và năng lượng vật lý**: Vận tốc AMR ($v=1.0\text{m/s}$), thời gian bốc dỡ tự động ($t_{load}=10\text{s}, t_{unload}=10\text{s}$), tốc độ tiêu hao pin khi chở hàng $\alpha_l$ và khi chạy không tải $\alpha_e$, ngưỡng pin an toàn $b_{min}=20\%$, và rẽ nhánh vào trạm sạc tự động khi pin yếu.
+- **Ràng buộc thời gian và động học pin vật lý**:
+  - Vận tốc AMR định mức $v = 1.0\text{ m/s}$.
+  - Thời gian bốc dỡ tự động tại trạm: $t_{load} = 10\text{s}, t_{unload} = 10\text{s}$.
+  - Tiêu hao năng lượng theo trạng thái: tải trọng có hàng ($\alpha_l$) và chạy không tải ($\alpha_e$).
+  - Ngưỡng pin an toàn $b_{min} = 20\%$, tự động điều hướng sang trạm sạc khi mức pin xuống thấp.
 
 ---
 
@@ -23,119 +28,164 @@ Hệ thống kho hàng diện tích $33.0\text{m} \times 16.5\text{m}$ vận hà
 ```
 Coding/
 │
-├── models/                           # Trọng số mạng nơ-ron đã huấn luyện
-│   └── sac_warehouse_pso.pt          # Model SAC meta-optimizer cho Standard PSO
+├── models/                               # Trọng số mạng nơ-ron đã huấn luyện
+│   └── sac_warehouse_pso.pt              # Trọng số SAC Meta-Optimizer Actor-Critic
 │
-├── results/                          # Biểu đồ và bảng kết quả thực nghiệm
-│   ├── table1_comparison.md          # Bảng đối sánh chi tiết theo Table 1 trong bài báo
-│   ├── boxplots_comparison.png       # Biểu đồ hộp (Box plots) tương ứng Figures 3, 4, 5, 6 trong bài báo
-│   ├── scenario4_convergence.png     # Đồ thị hội tụ trên Scenario 4 (350 Jobs / 750 Ops)
-│   └── sac_pso_training.png          # Đồ thị quá trình huấn luyện SAC trên 30+ warehouse instances
+├── results/                              # Kết quả thực nghiệm đối sánh & đồ họa trực quan
+│   ├── table_comparison.md               # Bảng đối sánh chi tiết Cmax, SD, cải thiện trên 4 Scenarios
+│   ├── table1_comparison.md              # Bảng định dạng rút gọn theo chuẩn Table 1 bài báo
+│   ├── barchart_all_instances.png        # Biểu đồ cột ngang/dọc đa instance
+│   ├── barchart_unified_grouped.png      # Biểu đồ cột nhóm tổng hợp toàn diện 4 Scenarios
+│   ├── barchart_4instances_grid.png      # Lưới 2x2 biểu đồ cột chi tiết có thanh sai số SD cho từng Scenario
+│   ├── boxplots_comparison.png           # Biểu đồ hộp (Box plots) đối sánh độ ổn định và phân vị IQR
+│   ├── scenario4_convergence.png         # Đồ thị hội tụ Makespan trên Scenario 4 quy mô lớn (350 Jobs / 750 Ops)
+│   └── sac_pso_training.png              # Đường cong phần thưởng huấn luyện SAC Agent trên 30+ instances
 │
-├── warehouse_env.py                  # Mô hình kho vật lý JSSPLA, Layout, 8 AMRs, Battery, Decoder
-├── baselines.py                      # Cài đặt chuẩn: FIFO, SPT, LPT, Standard GA, Standard PSO, CDPSO (Paper)
-├── sac_pso.py                        # SAC-PSO: Soft Actor-Critic điều khiển động Standard PSO
-├── train_sac_pso.py                  # Pipeline huấn luyện SAC trên tập 30+ instances đa quy mô
-├── benchmark_experiment.py           # Thử nghiệm độc lập 5 runs trên cả 4 Scenarios (1, 2, 3, 4)
-├── main.py                           # Entry point thực thi chính
-└── README.md
+├── warehouse_env.py                      # Mô hình môi trường kho JSSPLA, Layout, 8 AMRs, Pin, Decoder SPV
+├── baselines.py                          # Thuật toán so chuẩn: Heuristics (FIFO, SPT, LPT), Standard GA, Standard PSO
+├── sac_pso.py                            # Thuật toán đề xuất: Memetic SAC-PSO với 5 cải tiến đột phá
+├── train_sac_pso.py                      # Pipeline huấn luyện SAC Agent với Replay Buffer đa dạng
+├── benchmark_experiment.py               # Thử nghiệm độc lập đa lượt (num_runs=5) & tự động xuất biểu đồ
+├── main.py                               # Điểm khởi chạy chương trình (Entry point)
+└── README.md                             # Tài liệu kỹ thuật chi tiết
 ```
 
 ---
 
-## 3. Kiến trúc SAC-PSO (Soft Actor-Critic Meta-Optimization for Standard PSO)
+## 3. Kiến trúc Đề xuất: Enhanced Memetic SAC-PSO
 
-Trong Standard PSO giải bài toán JSSPLA:
+Trong thuật toán PSO tiêu chuẩn giải bài toán JSSPLA:
 - Mỗi hạt đại diện cho lời giải gồm hai vector liên tục:
   * $X_{os} \in [-4.0, 4.0]^D$: Vector liên tục xác định thứ tự công đoạn qua quy tắc SPV (*Smallest Position Value*).
-  * $X_{aa} \in [0.0, 1.0]^D$: Vector liên tục xác định lựa chọn robot trong cặp AMR chuyên trách.
-- Phương trình cập nhật vận tốc và tọa độ hạt:
+  * $X_{aa} \in [0.0, 1.0]^D$: Vector liên tục xác định phân bổ AMR trong cặp robot chuyên trách của cụm.
+- Phương trình cập nhật vận tốc và vị trí hạt:
   $$V_{os}(t+1) = w \cdot V_{os}(t) + c_1 r_1 (pbest_{os} - X_{os}(t)) + c_2 r_2 (gbest_{os} - X_{os}(t))$$
-  $$V_{aa}(t+1) = w \cdot V_{aa}(t) + c_1 r_1 (pbest_{aa} - X_{aa}(t)) + c_2 r_2 (gbest_{aa} - X_{aa}(t))$$
+  $$X_{os}(t+1) = \text{clip}(X_{os}(t) + V_{os}(t+1), -4.0, 4.0)$$
 
-### Hạn chế của Standard PSO truyền thống:
-1. **Lịch trình tham số cố định**: $w$ giảm tuyến tính từ $0.9 \to 0.4$, $c_1 = 1.5, c_2 = 1.5$. Khi đàn hạt bị kẹt ở cực tiểu cục bộ, việc giảm tiếp $w$ khiến vận tốc triệt tiêu, bầy hạt hoàn toàn tê liệt (*stagnation*).
-2. **Kẹt nghiệm tổ hợp trên instance quy mô lớn**: Trên Scenario 4 với 750 công đoạn, các hạt khi tiến sát $gbest$ sẽ có thứ tự hoán vị `argsort(X_os)` giống hệt nhau, không thể thoát bẫy nếu thiếu cơ chế kích thích đa dạng.
+### 5 Cải tiến Đột phá trong Thuật toán Memetic SAC-PSO:
 
-### Giải pháp SAC Meta-Optimizer:
-Tác tử **Soft Actor-Critic (SAC)** tương tác với môi trường PSO ở mỗi thế hệ $t$ ($t = 0 \dots T_{max}-1$):
-- **Vector trạng thái (State - 12 chiều)**:
-  1. Tiến độ thế hệ ($t / T_{max}$)
-  2. Tỉ lệ makespan $gbest$ hiện tại so với ban đầu
-  3. Tỉ lệ giá trị trung bình bầy hạt $\overline{pbest}$
-  4. Độ đa dạng thích nghi bầy hạt ($std / mean$)
-  5. Mức độ trì trệ bầy hạt (số bước liên tiếp không cải thiện $gbest$)
-  6. Mức cải thiện makespan bước gần nhất
-  7. Mức cải thiện trung bình của bầy hạt
-  8. Độ lớn trung bình của vận tốc hạt $\|V\|$
-  9. Độ phân tán tọa độ không gian vị trí
-  10. Quy mô kích thước bài toán ($N_{ops} / 750$)
-  11. Tỉ lệ đơn hàng Inbound / Outbound
-  12. Trọng số quán tính $w$ ở bước trước
-- **Không gian hành động (Action - 6 chiều liên tục)**:
-  1. $w \in [0.20, 0.95]$: Trọng số quán tính (*Inertia weight*)
-  2. $c_1 \in [0.40, 2.60]$: Gia tốc nhận thức cá nhân (*Cognitive acceleration*)
-  3. $c_2 \in [0.40, 2.60]$: Gia tốc liên kết xã hội (*Social acceleration*)
-  4. $v_{max} \in [1.20, 3.20]$: Giới hạn vận tốc động (*Adaptive velocity clamping*)
-  5. $p_{perturb} \in [0.0, 0.30]$: Tỉ lệ kích thích đa dạng chống trì trệ (*Anti-stagnation kick rate*)
-  6. $p_{balance} \in [0.0, 0.90]$: Xác suất tái cân bằng tải giữa 2 AMR trong cụm (*AMR workload balancing*)
+1. **Khởi tạo Quần thể Lai ghép (Heuristic Seeding + Opposition-Based Learning - OBL)**:
+   - *Hạt 0*: Trình tự đến tự nhiên của đơn hàng kết hợp phân bổ AMR xen kẽ cân bằng.
+   - *Hạt 1*: Ưu tiên đơn hàng nhập kho (*Inbound-Priority Sequence*) để giải phóng Buffer 1.
+   - *Hạt 2*: Quy tắc thời gian gia công ngắn nhất (*Shortest Processing Time - SPT*) giảm tắc nghẽn trạm.
+   - *Hạt 3*: Hạt đối ngẫu (*Opposition Particle*) của Hạt 0 mở rộng không gian tìm kiếm đối xứng.
+   - *Các hạt còn lại (4 .. P-1)*: Phân bố đều ngẫu nhiên liên tục để duy trì tính đa dạng.
+   $\to$ Thiết lập cận dưới lời giải chất lượng cao ngay từ thế hệ $t=0$, triệt tiêu các lượt chạy ngẫu nhiên kém và hạ thấp phương sai.
+
+2. **Động lực học Vận tốc Co cụm Ổn định (Stable Constriction Velocity Dynamics)**:
+   - Giới hạn tham số an toàn theo tiêu chuẩn hội tụ Clerc-Kennedy ($w \in [0.35, 0.88]$, $c_1, c_2 \in [1.0, 2.0]$, $c_1+c_2 \le 3.6$).
+   - SAC can thiệp dưới dạng phản hồi vi sai ($\Delta w, \Delta c_1, \Delta c_2, \Delta v_{max}$) giúp thích nghi linh hoạt mà không làm mất ổn định quỹ đạo hạt.
+
+3. **Cơ chế Tìm kiếm Cục bộ Đường Găng có Định hướng (Critical-Path Local Search)**:
+   - Tập trung định vị các đơn hàng và công đoạn hoàn thành muộn nhất trên đường găng (critical path).
+   - Thực hiện hoán đổi và dịch chuyển công đoạn nhằm loại bỏ khoảng thời gian chờ (*idle gaps*) của robot và trạm làm việc.
+
+4. **Tái cân bằng Tải Trọng AMR Thông minh Toàn diện (Universal Smart AMR Workload Balancing)**:
+   - Đánh giá độ chênh lệch thời gian hoàn thành giữa 2 robot trong từng cụm kệ ($|t_{R,1} - t_{R,2}|$).
+   - Tự động điều chuyển tác vụ từ robot quá tải sang robot nhàn rỗi theo cơ chế Greedy đa vòng.
+
+5. **Không gian Trạng thái 14 Chiều & Hàm Phần thưởng Dày (Dense Multi-Objective Reward)**:
+   - **Vector trạng thái (14 chiều)**:
+     1. Tiến trình thế hệ ($t / T_{max}$)
+     2. Tỉ lệ Makespan $gbest$ hiện tại so với ban đầu
+     3. Tỉ lệ giá trị trung bình bầy hạt $\overline{pbest}$
+     4. Độ đa dạng thích nghi bầy hạt ($std / mean$)
+     5. Mức độ trì trệ bầy hạt ($stagnation / T_{max}$)
+     6. Mức cải thiện $gbest$ ở bước gần nhất
+     7. Mức cải thiện trung bình của bầy hạt
+     8. Vận tốc trung bình chuẩn hóa $\|V\|$
+     9. Độ phân tán tọa độ vị trí
+     10. Quy mô kích thước bài toán ($N_{ops} / 750$)
+     11. Tỉ lệ đơn hàng Inbound / Tổng đơn
+     12. Độ lệch tải giữa các AMR ($amr\_disp$)
+     13. Tỉ lệ trung bình của nhóm hạt tinh hoa ($elite\_norm$)
+     14. Hành động $\Delta w$ ở bước trước
+   - **Không gian hành động (6 chiều liên tục)**: $\Delta w, \Delta c_1, \Delta c_2, \Delta v_{max}, p_{perturb}, p_{balance}$.
 
 ---
 
-## 4. Kết quả Thực nghiệm Đối sánh (5 Runs độc lập)
+## 4. Kết quả Thực nghiệm Đối sánh (5 Runs Độc lập)
 
-Kết quả đo đạc chính xác trên 4 Scenarios chuẩn của bài báo khoa học:
+Thực nghiệm đo đạc độc lập 5 lượt chạy ngẫu nhiên trên 4 kịch bản chuẩn của hệ thống kho:
 - **Scenario 1**: 8 Inbound, 16 Outbound (24 Jobs / 56 Operations) - Baseline.
-- **Scenario 2**: 4 Inbound, 24 Outbound (28 Jobs / 76 Operations) - Downstream workstation bottleneck.
-- **Scenario 3**: 20 Inbound, 8 Outbound (28 Jobs / 44 Operations) - Inbound receiving surge.
-- **Scenario 4**: 150 Inbound, 200 Outbound (350 Jobs / 750 Operations) - Extreme Large Stress Test.
+- **Scenario 2**: 4 Inbound, 24 Outbound (28 Jobs / 76 Operations) - Quá tải cụm trạm Picking/Packing hạ nguồn.
+- **Scenario 3**: 20 Inbound, 8 Outbound (28 Jobs / 44 Operations) - Sóng hàng nhập kho lớn tại trạm Receiving.
+- **Scenario 4**: 150 Inbound, 200 Outbound (350 Jobs / 750 Operations) - Thử nghiệm áp lực quy mô lớn (*Large Scale Stress Test*).
 
-| Scenario | Algorithm | $C_{max}^{best}$ (s) | $C_{max}^{avg}$ (s) | SD (%) | Baseline Imp (%) | Time (s) |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1** | FIFO | 916.91 | 916.91 | 0.00 | 0.00% | 0.000 |
-| | SPT | 1111.04 | 1111.04 | 0.00 | -21.17% | 0.000 |
-| | LPT | 1277.32 | 1277.32 | 0.00 | -39.31% | 0.000 |
-| | GA | 703.76 | 717.84 | 1.36 | 23.25% | 0.050 |
-| | CDPSO (Paper) | 749.75 | 773.90 | 3.80 | 18.23% | 0.101 |
-| | PSO | 652.73 | 681.47 | 3.12 | 28.81% | 0.068 |
-| | **SAC-PSO (Ours)** | **634.72** | **661.23** | **3.05** | **30.78%** *(Vượt trội & Cực ổn định)* | 0.277 |
-| **2** | FIFO | 1191.16 | 1191.16 | 0.00 | 0.00% | 0.000 |
-| | SPT | 1577.22 | 1577.22 | 0.00 | -32.41% | 0.000 |
-| | LPT | 1650.44 | 1650.44 | 0.00 | -38.56% | 0.000 |
-| | GA | 1003.85 | 1044.01 | 2.30 | 15.73% | 0.074 |
-| | CDPSO (Paper) | 1055.80 | 1078.63 | 1.85 | 11.36% | 0.133 |
-| | PSO | 975.54 | 1008.72 | 2.21 | 18.10% | 0.089 |
-| | **SAC-PSO (Ours)** | **959.57** | **980.00** | **1.38** | **19.44%** *(Vượt trội, SD chỉ 1.38%)* | 0.133 |
-| **3** | FIFO | 526.78 | 526.78 | 0.00 | 0.00% | 0.000 |
-| | SPT | 721.91 | 721.91 | 0.00 | -37.04% | 0.000 |
-| | LPT | 1085.31 | 1085.31 | 0.00 | -106.03% | 0.000 |
-| | GA | 516.62 | 518.43 | 0.49 | 1.93% | 0.039 |
-| | CDPSO (Paper) | 516.62 | 524.42 | 0.93 | 1.93% | 0.080 |
-| | PSO | 516.62 | 517.92 | 0.50 | 1.93% | 0.056 |
-| | **SAC-PSO (Ours)** | **516.62** | **516.62** | **0.00** | **1.93%** *(Tối ưu tuyệt đối, SD=0%)* | 0.088 |
-| **4** *(Large Instance)* | FIFO | 11299.52 | 11299.52 | 0.00 | 0.00% | 0.002 |
-| | SPT | 14441.94 | 14441.94 | 0.00 | -27.81% | 0.002 |
-| | LPT | 16577.91 | 16577.91 | 0.00 | -46.71% | 0.001 |
-| | GA | 9031.28 | 9285.78 | 1.71 | 20.07% | 0.636 |
-| | CDPSO (Paper) | 9192.77 | 9348.53 | 1.58 | 18.64% | 1.457 |
-| | PSO | 8747.42 | 8956.50 | 1.33 | 22.59% | 0.859 |
-| | **SAC-PSO (Ours)** | **8704.57** | **8913.76** | **1.46** | **22.97%** *(Vượt trội hoàn toàn)* | 1.311 |
+### Bảng Kết quả Tổng hợp:
 
-> **Điểm cải tiến vượt bậc về Tính Ổn Định (Stability & Compact Box Plots)**:  
-> - **Triệt tiêu hoàn toàn hiện tượng phương sai lớn**: Nhờ cơ chế **Strict Monotonic Memetic Elitist Refinement** (Cân bằng tải AMR đa cụm kết hợp Dịch chuyển nhiệm vụ đường găng), mọi seed chạy của SAC-PSO đều đảm bảo hội tụ tốt hơn hoặc bằng baseline PSO. Độ lệch chuẩn $\text{SD}$ chỉ dao động từ **0.00% đến 3.05%** across all scenarios.
-> - **Vị trí Box Plot tuyệt đối tối ưu**: Trên đồ thị Box Plot của cả 4 kịch bản (`results/boxplots_comparison.png`), các hộp phân vị của SAC-PSO đều nằm **thấp hơn rõ rệt** (Makespan nhỏ hơn) và **thu gọn (compact IQR)** so với GA, Standard PSO và CDPSO.
+| Scenario | Thuật toán | $C_{max}^{best}$ (s) | $C_{max}^{avg}$ (s) | $C_{max}^{worst}$ (s) | SD (s) | SD (%) (Độ ổn định) | Cải thiện FIFO (%) | Thời gian (s) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Scenario 1**<br>*(24 Jobs / 56 Ops)* | **FIFO** | 916.91 | 916.91 | 916.91 | 0.00 | 0.00% *(Đơn định)* | 0.00% | 0.000 |
+| | **SPT** | 1111.04 | 1111.04 | 1111.04 | 0.00 | 0.00% *(Đơn định)* | -21.17% | 0.000 |
+| | **LPT** | 1277.32 | 1277.32 | 1277.32 | 0.00 | 0.00% *(Đơn định)* | -39.31% | 0.000 |
+| | **GA** | 703.76 | 717.84 | 732.03 | 9.73 | 1.36% | 23.25% | 0.488 |
+| | **PSO** | 652.73 | 681.47 | 707.86 | 21.24 | 3.12% | 28.81% | 0.367 |
+| | **SAC-PSO (Ours)** | **654.06** | **660.97** | **669.83** | **5.08** | **0.77%** *(Cực ổn định)* | **28.67%** | 1.664 |
+| **Scenario 2**<br>*(28 Jobs / 76 Ops)* | **FIFO** | 1191.16 | 1191.16 | 1191.16 | 0.00 | 0.00% *(Đơn định)* | 0.00% | 0.000 |
+| | **SPT** | 1577.22 | 1577.22 | 1577.22 | 0.00 | 0.00% *(Đơn định)* | -32.41% | 0.000 |
+| | **LPT** | 1650.44 | 1650.44 | 1650.44 | 0.00 | 0.00% *(Đơn định)* | -38.56% | 0.005 |
+| | **GA** | 1003.85 | 1044.01 | 1068.66 | 23.97 | 2.30% | 15.73% | 0.120 |
+| | **PSO** | 975.54 | 1008.72 | 1042.16 | 22.34 | 2.21% | 18.10% | 0.171 |
+| | **SAC-PSO (Ours)** | **926.24** | **941.77** | **959.06** | **13.68** | **1.45%** *(Vượt trội)* | **22.24%** | 0.209 |
+| **Scenario 3**<br>*(28 Jobs / 44 Ops)* | **FIFO** | 526.78 | 526.78 | 526.78 | 0.00 | 0.00% *(Đơn định)* | 0.00% | 0.000 |
+| | **SPT** | 721.91 | 721.91 | 721.91 | 0.00 | 0.00% *(Đơn định)* | -37.04% | 0.000 |
+| | **LPT** | 1085.31 | 1085.31 | 1085.31 | 0.00 | 0.00% *(Đơn định)* | -106.03% | 0.000 |
+| | **GA** | 516.62 | 518.43 | 523.12 | 2.54 | 0.49% | 1.93% | 0.079 |
+| | **PSO** | 516.62 | 517.92 | 523.12 | 2.60 | 0.50% | 1.93% | 0.095 |
+| | **SAC-PSO (Ours)** | **516.62** | **516.62** | **516.62** | **0.00** | **0.00%** *(Tối ưu tuyệt đối)* | **1.93%** | 0.154 |
+| **Scenario 4**<br>*(350 Jobs / 750 Ops)* | **FIFO** | 11299.52 | 11299.52 | 11299.52 | 0.00 | 0.00% *(Đơn định)* | 0.00% | 0.002 |
+| | **SPT** | 14441.94 | 14441.94 | 14441.94 | 0.00 | 0.00% *(Đơn định)* | -27.81% | 0.003 |
+| | **LPT** | 16577.91 | 16577.91 | 16577.91 | 0.00 | 0.00% *(Đơn định)* | -46.71% | 0.001 |
+| | **GA** | 9031.28 | 9285.78 | 9450.26 | 158.45 | 1.71% | 20.07% | 1.203 |
+| | **PSO** | 8747.42 | 8956.50 | 9108.93 | 118.69 | 1.33% | 22.59% | 1.705 |
+| | **SAC-PSO (Ours)** | **7433.14** | **7548.57** | **7756.31** | **113.14** | **1.50%** *(Đột phá vượt bậc)* | **34.22%** | 3.619 |
 
 ---
 
-## 5. Hướng dẫn Chạy Thử nghiệm
+## 5. Phân tích Chi tiết & Ưu thế Vượt trội của SAC-PSO
 
-Chạy trực tiếp toàn bộ benchmark đối sánh và tự động xuất bảng kết quả & biểu đồ:
+1. **Hiệu năng đột phá trên Instance lớn (Scenario 4)**:
+   - Trên bài toán quy mô lớn 350 Jobs (750 công đoạn), SAC-PSO rút ngắn Makespan trung bình từ **11299.52s** (FIFO) xuống còn **7548.57s**, đạt mức cải thiện ấn tượng **34.22%**.
+   - SAC-PSO vượt xa Standard PSO (**8956.50s**) hơn **1407 giây**, minh chứng rõ ràng sức mạnh của việc tinh chỉnh tham số động và tìm kiếm cục bộ đường găng khi giải bài toán tổ hợp phức tạp.
+
+2. **Tính Ổn định Xuất sắc (Compact IQR & Low SD)**:
+   - Hệ số biến thiên $\text{SD}$ của SAC-PSO duy trì ở mức cực kỳ thấp (**0.00% - 1.50%**) trên tất cả các kịch bản.
+   - Đặc biệt ở Scenario 1, độ lệch chuẩn giảm chỉ còn **5.08s (0.77%)**, so với **21.24s (3.12%)** của PSO chuẩn.
+   - Ở Scenario 3, SAC-PSO đạt độ hội tụ tuyệt đối $C_{max} = 516.62\text{s}$ trên cả 5 runs ($\text{SD} = 0.00\text{s}$).
+
+3. **Trực quan hóa Đa dạng trong Thư mục `results/`**:
+   - `boxplots_comparison.png`: Biểu đồ hộp phân vị cho thấy dải IQR của SAC-PSO luôn nằm thấp hơn và thu gọn hơn đáng kể so với GA và Standard PSO.
+   - `barchart_4instances_grid.png`: Lưới 2x2 thể hiện rõ Makespan và thanh sai số chuẩn $\text{SD}$ của 6 thuật toán trên từng Scenario.
+   - `barchart_unified_grouped.png`: Biểu đồ cột nhóm so sánh trực quan toàn diện trên cùng một khung hình.
+   - `scenario4_convergence.png`: Đường cong hội tụ thể hiện tốc độ giảm Makespan thần tốc của SAC-PSO qua các thế hệ.
+
+---
+
+## 6. Hướng dẫn Cài đặt & Khởi chạy
+
+### Yêu cầu Môi trường:
+- Python 3.9+
+- PyTorch (`torch`)
+- NumPy
+- Matplotlib
+
+Cài đặt nhanh các thư viện phụ thuộc:
+```bash
+pip install torch numpy matplotlib
+```
+
+### Chạy Thực nghiệm Đối sánh Đầy đủ:
+Chạy trực tiếp file `main.py` để tự động kiểm tra mô hình, chạy benchmark 5 runs trên 4 Scenarios và xuất toàn bộ bảng kết quả & biểu đồ vào thư mục `results/`:
 ```bash
 python main.py
 ```
-*(Hoặc chạy trực tiếp file module `python benchmark_experiment.py`)*
 
-Huấn luyện lại mô hình SAC trên tập 30+ instance mở rộng:
+*(Hoặc chạy trực tiếp module benchmark: `python benchmark_experiment.py`)*
+
+### Huấn luyện lại SAC Meta-Optimizer Agent:
+Nếu muốn huấn luyện lại mạng nơ-ron Actor-Critic từ đầu trên bộ 30+ instance kho ngẫu nhiên:
 ```bash
 python train_sac_pso.py
 ```
+Model sau khi huấn luyện sẽ tự động được lưu vào `models/sac_warehouse_pso.pt`.
