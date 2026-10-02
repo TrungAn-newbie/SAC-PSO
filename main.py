@@ -6,7 +6,6 @@ and Validation via Gazebo Simulation" (Supervisor: Dr. Truong Ngoc Cuong, Studen
 Compares:
 - Heuristics: FIFO, SPT, LPT
 - Conventional Metaheuristics: Standard GA, Standard PSO
-- Proposed CDPSO (Cooperative Discrete PSO from Paper)
 - Proposed SAC-PSO (Deep RL Meta-Optimization for Standard PSO - Ours)
 Across Scenarios 1 (24J), 2 (28J), 3 (28J), and 4 (350J - Large Instance).
 """
@@ -19,7 +18,7 @@ from benchmark_experiment import run_full_benchmarks
 def main():
     print("\n" + "=" * 95)
     print("   JOB SHOP SCHEDULING WITH LIMITED AMRS (JSSPLA) IN MULTI-AMR WAREHOUSE")
-    print("   DEEP RL (SAC) DYNAMIC CONTROL vs CDPSO, PSO, GA, FIFO, SPT, LPT")
+    print("   DEEP RL (SAC) DYNAMIC CONTROL vs PSO, GA, FIFO, SPT, LPT")
     print("=" * 95)
 
     model_path = os.path.join("models", "sac_warehouse_pso.pt")
@@ -28,7 +27,7 @@ def main():
         from train_sac_pso import train_sac_pso
         train_sac_pso(num_episodes=50, pop_size=30, max_iter=25, save_model_path=model_path)
 
-    # Run full benchmarks matching paper Table 1 and Figures 3-6
+    # Run full benchmarks without CDPSO
     run_full_benchmarks(
         num_runs=5,
         pop_size=30,
@@ -38,10 +37,11 @@ def main():
 
     print("\n[SUCCESS] All benchmark experiments completed successfully.")
     print("Check the results folder for generated figures and summary tables:")
-    print("  - Results Table : results/table1_comparison.md")
-    print("  - Boxplots (Fig 3-6): results/boxplots_comparison.png")
-    print("  - Convergence Curve : results/scenario4_convergence.png")
-    print("  - Training Curve    : results/sac_pso_training.png")
+    print("  - Results Table (Cmax & Stability) : results/table_comparison.md")
+    print("  - Grouped Bar Chart (All Instances): results/barchart_all_instances.png")
+    print("  - Unified Bar Chart (Single Panel) : results/barchart_unified_grouped.png")
+    print("  - Stability Boxplots               : results/boxplots_comparison.png")
+    print("  - Convergence Curve                : results/scenario4_convergence.png")
 
 
 if __name__ == "__main__":

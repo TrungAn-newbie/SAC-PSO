@@ -298,6 +298,78 @@ class WarehousePSORLEnv:
         aa_seq = [int(v > 0.5) for v in x_a]
         return os_seq, aa_seq
 
+    def _generate_pipeline_schedule(self) -> Tuple[List[int], List[int]]:
+        out_jobs = [j.job_id for j in self.instance.jobs if j.job_type == "OUTBOUND"]
+        in_jobs = [j.job_id for j in self.instance.jobs if j.job_type == "INBOUND"]
+        random.shuffle(out_jobs)
+        random.shuffle(in_jobs)
+
+        n_out = len(out_jobs)
+        n_in = len(in_jobs)
+
+        if n_out <= 20:
+            # Small / medium instances (Scenario 1 & 3): 4 balanced pipeline batches
+            bsz_out = max(1, n_out // 4)
+            os_seq = []
+            for b in range(0, n_out, bsz_out):
+                b_out = out_jobs[b : b + bsz_out]
+                b_in = in_jobs[b * n_in // max(1, n_out) : (b + bsz_out) * n_in // max(1, n_out)]
+                os_seq.extend(b_out)
+                os_seq.extend(b_in)
+                os_seq.extend(b_out)
+                os_seq.extend(b_out)
+        elif n_out <= 30:
+            # Scenario 2: Batch 6: 6 outbound stage 0, 1 inbound, then stage 1 & 2
+            bsz_out = 6
+            os_seq = []
+            for b in range(0, n_out, bsz_out):
+                b_out = out_jobs[b : b + bsz_out]
+                b_in = in_jobs[b * n_in // max(1, n_out) : (b + bsz_out) * n_in // max(1, n_out)]
+                os_seq.extend(b_out)
+                os_seq.extend(b_in)
+                os_seq.extend(b_out)
+                os_seq.extend(b_out)
+        else:
+            # Large scale (Scenario 4): Continuous Pipelined Batches (bsz=16)
+            bsz_out = 16
+            os_seq = []
+            for b in range(0, n_out, bsz_out):
+                b_out = out_jobs[b : b + bsz_out]
+                b_in = in_jobs[b * n_in // max(1, n_out) : (b + bsz_out) * n_in // max(1, n_out)]
+                os_seq.extend(b_out)
+                os_seq.extend(b_in)
+                os_seq.extend(b_out)
+                os_seq.extend(b_out)
+
+        cluster_counters = {c: 0 for c in range(4)}
+        aa_seq = []
+        for j_id in os_seq:
+            c = self.instance.jobs[j_id].cluster_id
+            aa_seq.append(cluster_counters[c] % 2)
+            cluster_counters[c] += 1
+
+        return os_seq, aa_seq
+
+    def _sequence_to_spv(self, target_os_seq: List[int], target_aa_seq: List[int]) -> Tuple[np.ndarray, np.ndarray]:
+        dim = self.dim
+        spv_os = np.zeros(dim)
+        spv_aa = np.zeros(dim)
+
+        job_indices: Dict[int, List[int]] = {}
+        for idx, j_id in enumerate(self.base_os):
+            job_indices.setdefault(j_id, []).append(idx)
+
+        job_occ = {j_id: 0 for j_id in job_indices}
+        for pos, j_id in enumerate(target_os_seq):
+            occ = job_occ[j_id]
+            if occ < len(job_indices[j_id]):
+                orig_idx = job_indices[j_id][occ]
+                job_occ[j_id] += 1
+                spv_os[orig_idx] = (pos / max(1, dim)) * 6.0 - 3.0 + np.random.uniform(-0.02, 0.02)
+                spv_aa[orig_idx] = 0.85 if target_aa_seq[pos] == 1 else 0.15
+
+        return spv_os, spv_aa
+
     def reset(self, new_seed: Optional[int] = None) -> np.ndarray:
         if new_seed is not None:
             self.seed = new_seed
@@ -310,7 +382,7 @@ class WarehousePSORLEnv:
         P = self.num_particles
         dim = self.dim
 
-        # Clean continuous particles initialization matching Standard PSO baseline
+        # Continuous particles initialization matching standard PSO exploration
         self.X_os = np.random.uniform(-4.0, 4.0, (P, dim))
         self.V_os = np.random.uniform(-1.5, 1.5, (P, dim))
         self.X_aa = np.random.uniform(0.0, 1.0, (P, dim))
@@ -325,6 +397,7 @@ class WarehousePSORLEnv:
         self.gbest_X_os = None
         self.gbest_X_aa = None
 
+        # Initial uniform evaluation
         for i in range(P):
             o_s, a_s = self._decode_particle(self.X_os[i], self.X_aa[i])
             sc = self.decoder.decode(o_s, a_s)
@@ -334,6 +407,25 @@ class WarehousePSORLEnv:
                 self.gbest_sched = sc
                 self.gbest_X_os = self.X_os[i].copy()
                 self.gbest_X_aa = self.X_aa[i].copy()
+
+        # Non-destructive pipeline anchor injection: replace worst particles ONLY if anchors are better
+        n_seeds = max(1, int(P * 0.25))
+        worst_indices = np.argsort(self.pbest_val)[-n_seeds:]
+        for wi in worst_indices:
+            pip_os, pip_aa = self._generate_pipeline_schedule()
+            sc_pip = self.decoder.decode(pip_os, pip_aa)
+            if sc_pip.makespan < self.pbest_val[wi]:
+                spv_o, spv_a = self._sequence_to_spv(pip_os, pip_aa)
+                self.X_os[wi] = spv_o
+                self.X_aa[wi] = spv_a
+                self.pbest_val[wi] = sc_pip.makespan
+                self.pbest_X_os[wi] = spv_o
+                self.pbest_X_aa[wi] = spv_a
+                if sc_pip.makespan < self.gbest_val:
+                    self.gbest_val = sc_pip.makespan
+                    self.gbest_sched = sc_pip
+                    self.gbest_X_os = spv_o
+                    self.gbest_X_aa = spv_a
 
         self.initial_gbest = self.gbest_val
         self.prev_gbest = self.gbest_val
@@ -399,29 +491,33 @@ class WarehousePSORLEnv:
         self.last_action = action.copy()
         prog = self.current_iter / max(1, self.max_iter - 1)
 
-        # Baseline convergence schedule matching optimal Clerc-Kennedy constriction
-        w = 0.90 - 0.50 * prog
-        c1 = 1.50
-        c2 = 1.50
-        v_max = 2.0
+        # Dynamic SAC parameters
+        w_base = 0.90 - 0.50 * prog
+        w = float(np.clip(w_base + 0.25 * float(action[0]), 0.35, 0.95))
+        c1 = float(np.clip(1.60 - 0.30 * prog + 0.40 * float(action[1]), 0.80, 2.60))
+        c2 = float(np.clip(1.40 + 0.40 * prog + 0.40 * float(action[2]), 0.80, 2.60))
+        v_max = float(np.clip(2.0 + 1.0 * float(action[3]), 0.5, 3.5))
 
         dim = self.dim
         P = self.num_particles
 
-        # Standard constriction velocity and position update
         r1 = np.random.rand(P, dim)
         r2 = np.random.rand(P, dim)
 
-        for i in range(P):
-            # OS vector update
-            self.V_os[i] = w * self.V_os[i] + c1 * r1[i] * (self.pbest_X_os[i] - self.X_os[i]) + c2 * r2[i] * (self.gbest_X_os - self.X_os[i])
-            self.V_os[i] = np.clip(self.V_os[i], -v_max, v_max)
-            self.X_os[i] = np.clip(self.X_os[i] + self.V_os[i], -4.0, 4.0)
+        # Swarm velocity and position updates
+        self.V_os = np.clip(w * self.V_os + c1 * r1 * (self.pbest_X_os - self.X_os) + c2 * r2 * (self.gbest_X_os - self.X_os), -v_max, v_max)
+        self.X_os = np.clip(self.X_os + self.V_os, -4.0, 4.0)
 
-            # AA vector update
-            self.V_aa[i] = w * self.V_aa[i] + c1 * r1[i] * (self.pbest_X_aa[i] - self.X_aa[i]) + c2 * r2[i] * (self.gbest_X_aa - self.X_aa[i])
-            self.V_aa[i] = np.clip(self.V_aa[i], -1.0, 1.0)
-            self.X_aa[i] = np.clip(self.X_aa[i] + self.V_aa[i], 0.0, 1.0)
+        self.V_aa = np.clip(w * self.V_aa + c1 * r1 * (self.pbest_X_aa - self.X_aa) + c2 * r2 * (self.gbest_X_aa - self.X_aa), -1.0, 1.0)
+        self.X_aa = np.clip(self.X_aa + self.V_aa, 0.0, 1.0)
+
+        # Stagnation escape: Cauchy mutation on sluggish particles
+        if self.stagnation >= 3 or float(action[4]) > 0.40:
+            worst_k = np.argsort(self.pbest_val)[-int(P * 0.20):]
+            for wi in worst_k:
+                cauchy_noise = np.random.standard_cauchy(dim) * 0.40
+                self.X_os[wi] = np.clip(self.gbest_X_os + cauchy_noise, -4.0, 4.0)
+                self.X_aa[wi] = np.random.uniform(0.0, 1.0, dim)
 
         # Evaluate all particles
         self.prev_gbest = self.gbest_val
@@ -535,33 +631,38 @@ class SACPSOSolver:
         best_val = gbest_val
         best_sched = gbest_sched
 
-        # 1. Greedy AMR Workload Balancing across all 4 clusters
-        for c in range(4):
-            r1_id, r2_id = 2 * c, 2 * c + 1
-            t1 = best_sched.amr_completion_times[r1_id]
-            t2 = best_sched.amr_completion_times[r2_id]
-            if abs(t1 - t2) > 5.0:
-                heavier = 0 if t1 > t2 else 1
-                lighter = 1 - heavier
-                cands = [
-                    idx for idx in range(dim)
-                    if instance.jobs[base_os[idx]].cluster_id == c
-                    and cand_aa[idx] == heavier
-                ]
-                for cand_idx in cands:
-                    test_aa = cand_aa.copy()
-                    test_aa[cand_idx] = lighter
-                    os_c = [base_os[rk] for rk in ranks]
-                    sc_c = decoder.decode(os_c, test_aa)
-                    if sc_c.makespan < best_val:
-                        best_val = sc_c.makespan
-                        best_sched = sc_c
-                        cand_aa = test_aa
+        # 1. Multi-Pass Greedy AMR Workload Balancing across all 4 clusters
+        for _ in range(4):
+            improved = False
+            for c in range(4):
+                r1_id, r2_id = 2 * c, 2 * c + 1
+                t1 = best_sched.amr_completion_times[r1_id]
+                t2 = best_sched.amr_completion_times[r2_id]
+                if abs(t1 - t2) > 3.0:
+                    heavier = 0 if t1 > t2 else 1
+                    lighter = 1 - heavier
+                    cands = [
+                        idx for idx in range(dim)
+                        if instance.jobs[base_os[idx]].cluster_id == c
+                        and cand_aa[idx] == heavier
+                    ]
+                    for cand_idx in cands:
+                        test_aa = cand_aa.copy()
+                        test_aa[cand_idx] = lighter
+                        os_c = [base_os[rk] for rk in ranks]
+                        sc_c = decoder.decode(os_c, test_aa)
+                        if sc_c.makespan < best_val:
+                            best_val = sc_c.makespan
+                            best_sched = sc_c
+                            cand_aa = test_aa
+                            improved = True
+            if not improved:
+                break
 
         # 2. Critical Path Bottleneck Job Shift
         latest_jobs = sorted(best_sched.job_completion_times.items(), key=lambda x: x[1], reverse=True)
-        k_jobs = min(12, len(latest_jobs))
-        for j_id, _ in latest_jobs[:k_jobs]:
+        k_evals = 0
+        for j_id, _ in latest_jobs[:min(8, len(latest_jobs))]:
             pos_in_ranks = [i for i, rk in enumerate(ranks) if base_os[rk] == j_id]
             for p_idx in pos_in_ranks:
                 for shift in [1, 2, 3]:
@@ -570,16 +671,19 @@ class SACPSOSolver:
                         cand_ranks[p_idx], cand_ranks[p_idx - shift] = cand_ranks[p_idx - shift], cand_ranks[p_idx]
                         cand_os = [base_os[rk] for rk in cand_ranks]
                         sc_cand = decoder.decode(cand_os, cand_aa)
+                        k_evals += 1
                         if sc_cand.makespan < best_val:
                             best_val = sc_cand.makespan
                             best_sched = sc_cand
                             ranks = cand_ranks
                             break
+            if k_evals >= 20:
+                break
 
         # Map back to continuous SPV coordinates smoothly
         new_X_os = np.empty(dim)
         new_X_os[ranks] = np.linspace(-3.0, 3.0, dim)
-        new_X_aa = np.array([0.80 if v == 1 else 0.20 for v in cand_aa])
+        new_X_aa = np.array([0.85 if v == 1 else 0.15 for v in cand_aa])
 
         return best_val, best_sched, new_X_os, new_X_aa
 
