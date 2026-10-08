@@ -1,22 +1,22 @@
-# JSSPLA: Job Shop Scheduling with Limited AMRs in Smart Warehouse
-### Deep Reinforcement Learning (Soft Actor-Critic) Meta-Optimization for Standard PSO (SAC-PSO) vs Standard PSO, GA, FIFO, SPT, LPT
+# A Soft Actor-Critic Particle Swarm Optimization for Scheduling Orders in Logistic Warehouse
+### Deep Reinforcement Learning (Soft Actor-Critic) Dynamic Meta-Optimization for Particle Swarm Optimization (SAC-PSO) vs Standard PSO, GA, FIFO, SPT, LPT
 
-> **Đề tài nghiên cứu**: *"Job Shop-Based Scheduling Optimization for Multi-AMR Warehouse Systems and Validation via Gazebo Simulation"*  
+> **Đề tài nghiên cứu**: *"A Soft Actor-Critic Particle Swarm Optimization for scheduling orders in Logistic warehouse"*  
 > **Supervisor**: Dr. Truong Ngoc Cuong  
-> **Student**: Tran Viet Trung An (MAIL LAB)
+> **Student**: Tran Viet Trung An  
 
 ---
 
-## 1. Tổng quan Bài toán JSSPLA trong Kho Thông Minh
+## 1. Tổng quan Bài toán JSSPLA trong Kho Logistics Thông Minh
 
 Hệ thống kho hàng tự động diện tích $33.0\text{m} \times 16.5\text{m}$ vận hành đội 8 robot tự hành (AMR) phục vụ 4 cụm kệ hàng ($R_1, R_2, R_3, R_4$) và các trạm chức năng:
 - **Trạm nhận & kiểm tra hàng**: Receiving $\to$ Buffer 1
-- **Khu vực lưu trữ trung tâm**: 4 cụm kệ $R_1, R_2, R_3, R_4$
+- **Khu vực lưu trữ trung tâm**: 4 cụm kệ lưu trữ $R_1, R_2, R_3, R_4$
 - **Trạm hạ nguồn**: Picking (lấy hàng) $\to$ Packing (đóng gói) $\to$ Buffer 2 $\to$ Shipping (xuất xưởng)
 - **Trạm sạc tự động**: Automated Charging Station
 - **Chính sách phân đội chuyên trách (Dedicated Sub-fleet Policy)**: Mỗi cụm kệ $k \in \{0, 1, 2, 3\}$ được giao đúng 2 robot cố định ($R_1 \to [0, 1]$, $R_2 \to [2, 3]$, $R_3 \to [4, 5]$, $R_4 \to [6, 7]$). Mọi tác vụ vận chuyển đơn hàng thuộc cụm đó bắt buộc do 1 trong 2 robot này thực hiện.
 - **Ràng buộc thời gian và động học pin vật lý**:
-  - Vận tốc AMR định mức $v = 1.0\text{ m/s}$.
+  - Vận tốc định mức AMR: $v = 1.0\text{ m/s}$.
   - Thời gian bốc dỡ tự động tại trạm: $t_{load} = 5\text{s}, t_{unload} = 5\text{s}$.
   - Tiêu hao năng lượng theo trạng thái: tải trọng có hàng ($\alpha_l$) và chạy không tải ($\alpha_e$).
   - Ngưỡng pin an toàn $b_{min} = 20\%$, tự động điều hướng sang trạm sạc khi mức pin xuống thấp.
@@ -31,7 +31,7 @@ Coding/
 ├── models/                               # Trọng số mạng nơ-ron đã huấn luyện
 │   └── sac_basic_pso.pt                  # Trọng số SAC Meta-Optimizer Actor-Critic
 │
-├── results/                              # Kết quả thực nghiệm đối sánh & biểu đồ trực quan
+├── results/                              # Kết quả thực nghiệm đối sánh & đồ họa trực quan
 │   ├── table_standard_scenarios.md       # Bảng đối sánh 10 runs trên 9 kịch bản chuẩn (W1 - W9)
 │   ├── table_metrics_cmax_sd_cputime.md  # Bảng chi tiết Cmax, SD, %SD và CPU Time
 │   ├── barchart_standard_scenarios.png   # Biểu đồ cột Cmax phân nhóm trên 9 kịch bản (W1 - W9)
@@ -40,7 +40,7 @@ Coding/
 │   ├── boxplot_large_scenario.png        # Biểu đồ hộp Boxplot cho nhóm kịch bản Large (W7, W8, W9)
 │   ├── comparison_barchart.png           # Biểu đồ cột đối sánh trực quan tổng thể
 │   ├── sac_basic_training.png            # Đồ thị 4 panels đường cong huấn luyện SAC Agent
-│   ├── sac_basic_training_history.json   # Dữ liệu lịch sử huấn luyện
+│   ├── sac_basic_training_history.json   # Log dữ liệu huấn luyện
 │   └── benchmark_results.json            # Dữ liệu raw của benchmark 10 runs
 │
 ├── warehouse_env.py                      # Mô hình môi trường kho JSSPLA, Layout, 8 AMRs, Pin, Decoder SPV
@@ -55,7 +55,7 @@ Coding/
 
 ---
 
-## 3. Kiến trúc Thuật toán: SAC-PSO Meta-Optimization
+## 3. Kiến trúc Thuật toán Đề xuất: SAC-PSO Meta-Optimization
 
 Trong thuật toán PSO giải bài toán JSSPLA:
 - Mỗi hạt đại diện cho một lời giải gồm hai vector liên tục:
@@ -67,7 +67,7 @@ Trong thuật toán PSO giải bài toán JSSPLA:
   $$V_{aa}(t+1) = \text{clip}(w \cdot V_{aa}(t) + c_1 r_1 (pbest_{aa} - X_{aa}(t)) + c_2 r_2 (gbest_{aa} - X_{aa}(t)), -1.0, 1.0)$$
   $$X_{aa}(t+1) = \text{clip}(X_{aa}(t) + V_{aa}(t+1), 0.0, 1.0)$$
 
-### Đặc trưng Kiến trúc SAC-PSO:
+### Các Đặc trưng Kỹ thuật Cốt lõi:
 
 1. **Không gian Trạng thái 6 Chiều ($s_t \in \mathbb{R}^6$)**:
    - `progress`: Tiến trình thế hệ $\frac{t}{T_{max}} \in [0, 1]$.
@@ -79,21 +79,38 @@ Trong thuật toán PSO giải bài toán JSSPLA:
 
 2. **Không gian Hành động Liên tục 3 Chiều ($a_t \in [-1, 1]^3$)**:
    - SAC điều biến trực tiếp 3 siêu tham số nòng cốt của bầy hạt tại mỗi bước lặp:
-     * Quán tính $w \in [0.35, 0.95]$: Cân bằng giữa khám phá toàn cục (exploration) và khai thác cục bộ (exploitation).
+     * Quán tính $w \in [0.35, 0.95]$: Cân bằng giữa khám phá toàn cục (*exploration*) và khai thác cục bộ (*exploitation*).
      * Trọng số học cá nhân $c_1 \in [0.80, 2.60]$: Điều chỉnh xu hướng hướng về kinh nghiệm cá nhân $pbest$.
      * Trọng số học xã hội $c_2 \in [0.80, 2.60]$: Điều chỉnh xu hướng hội tụ về lời giải tốt nhất của bầy $gbest$.
 
-3. **Cơ chế Tinh chỉnh Lời giải Tinh hoa (Elitist Memetic Refinement)**:
-   - *Greedy AMR Workload Balancing*: Đánh giá độ chênh lệch thời gian hoàn thành giữa 2 robot trong từng cụm kệ ($|t_{R,1} - t_{R,2}|$) và tự động điều chuyển tác vụ từ robot quá tải sang robot nhàn rỗi.
-   - *Critical-Path Job Shifting*: Dịch chuyển thứ tự các công đoạn thuộc đơn hàng hoàn thành muộn nhất nhằm triệt tiêu các khoảng thời gian chờ (idle gaps).
+3. **Cơ chế Tự động Điều chỉnh Nhiệt độ Entropy ($\alpha$)**:
+   - Tối ưu hóa hàm mục tiêu cực đại hóa đồng thời Phần thưởng và Entropy:
+     $$J(\pi) = \sum_{t} \mathbb{E} \left[ r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot | s_t)) \right]$$
+   - Entropy mục tiêu được thiết lập chuẩn hóa theo số chiều hành động: $\bar{\mathcal{H}} = -\text{dim}(\mathcal{A}) = -3.0$.
+   - $\alpha$ được cập nhật thích ứng theo gradient descent: $\alpha$ tự động duy trì mức cao ở đầu giai đoạn để khám phá không gian tham số, sau đó giảm dần về mức nhỏ ($\approx 0.05 - 0.15$) giúp mạng hội tụ sâu và ổn định.
 
-4. **Hàm Phần thưởng Dày (Dense Reward Formulation)**:
+4. **Cơ chế Tinh chỉnh Lời giải Tinh hoa (Elitist Memetic Refinement)**:
+   - *Greedy AMR Workload Balancing*: Đánh giá độ chênh lệch thời gian hoàn thành giữa 2 robot trong từng cụm kệ ($|t_{R,1} - t_{R,2}|$) và tự động điều chuyển tác vụ từ robot quá tải sang robot nhàn rỗi.
+   - *Critical-Path Job Shifting*: Dịch chuyển thứ tự các công đoạn thuộc đơn hàng hoàn thành muộn nhất nhằm triệt tiêu các khoảng thời gian chờ (*idle gaps*).
+
+5. **Hàm Phần thưởng Dày (Dense Reward Formulation)**:
    $$R = 15.0 \cdot \Delta gbest + 3.0 \cdot \Delta \overline{pbest} - 0.02 \cdot \frac{\text{stagnation}}{T_{max}} + R_{terminal}$$
    kích thích tác tử SAC liên tục hạ thấp Makespan bầy hạt và tránh rơi vào bẫy cực trị địa phương.
 
 ---
 
-## 4. Hệ Thống 9 Benchmark Test Instances Tiêu Chuẩn ($W_1 \to W_9$)
+## 4. Quá trình Huấn luyện SAC Agent (3-Stage Scenario Curriculum)
+
+Tác tử SAC được huấn luyện theo giáo trình 3 giai đoạn (300 episodes):
+- **Stage 1 (Ep 1 - 100)**: Kịch bản nhỏ Small (12 - 50 jobs) $\to$ Học điều phối luồng cơ bản.
+- **Stage 2 (Ep 101 - 200)**: Kịch bản trung bình Medium (50 - 150 jobs) $\to$ Học xử lý nghẽn trạm và đột biến luồng nhập.
+- **Stage 3 (Ep 201 - 300)**: Kịch bản lớn Large (150 - 300 jobs) $\to$ Học chịu tải nặng và tối ưu hóa phân bổ robot.
+
+![Đường cong huấn luyện SAC](results/sac_basic_training.png)
+
+---
+
+## 5. Hệ Thống 9 Benchmark Test Instances Tiêu Chuẩn ($W_1 \to W_9$)
 
 Hệ thống benchmark được chuẩn hóa thành 3 nhóm quy mô: **Small (50 jobs / 100 ops)**, **Medium (150 jobs / 300 ops)**, và **Large (300 jobs / 600 ops)**. Trong mỗi quy mô, bài toán được phân rã thành 3 cấu hình luồng (Cân bằng $In=Out$, Thiên xuất $In<Out$, Thiên nhập $In>Out$):
 
@@ -111,7 +128,7 @@ Hệ thống benchmark được chuẩn hóa thành 3 nhóm quy mô: **Small (50
 
 ---
 
-## 5. Kết quả Thực nghiệm Đối sánh (10 Runs Độc lập trên $W_1 \to W_9$)
+## 6. Kết quả Thực nghiệm Đối sánh (10 Runs Độc lập trên $W_1 \to W_9$)
 
 Thực nghiệm đo đạc độc lập **10 lượt chạy ngẫu nhiên (10 independent random seeds)** trên toàn bộ 9 instances tiêu chuẩn:
 
@@ -154,11 +171,37 @@ Thực nghiệm đo đạc độc lập **10 lượt chạy ngẫu nhiên (10 in
 |  |  | PSO | 5363.72 | 5364.37 | 5370.22 | 1.95 | 0.04% | +12.59% | +0.00% | 0.550 |
 |  |  | **SAC-PSO (Ours)** | **5363.72** | **5363.72** | **5363.72** | **0.00** | **0.00%** | **+12.60%** | **+0.01%** | 0.719 |
 
-*Bảng dữ liệu chi tiết $C_{max}$, SD, %SD và CPU Time xem tại [table_metrics_cmax_sd_cputime.md](file:///d:/BÁCH%20KHOA/MAIL%20LAB/JobShopScheduling/Warehouse/Coding/results/table_metrics_cmax_sd_cputime.md).*
+*Bảng dữ liệu chi tiết $C_{max}$, SD, %SD và CPU Time xem tại [table_metrics_cmax_sd_cputime.md](results/table_metrics_cmax_sd_cputime.md).*
 
 ---
 
-## 6. Hướng dẫn Cài đặt & Khởi chạy
+## 7. Biểu đồ Trực quan hóa Hiệu năng Chuẩn Xuất bản
+
+### 7.1. Biểu đồ Cột Phân nhóm (Grouped Bar Chart - $W_1 \to W_9$)
+![Grouped Bar Chart](results/barchart_standard_scenarios.png)
+
+### 7.2. Phân bố Hộp (Boxplots) theo Cấp độ Quy mô
+| Nhóm Small ($W_1, W_2, W_3$) | Nhóm Medium ($W_4, W_5, W_6$) |
+| :---: | :---: |
+| ![Boxplot Small](results/boxplot_small_scenario.png) | ![Boxplot Medium](results/boxplot_medium_scenario.png) |
+
+| Nhóm Large ($W_7, W_8, W_9$) |
+| :---: |
+| ![Boxplot Large](results/boxplot_large_scenario.png) |
+
+### 7.3. Các Điểm Nhấn Phân Tích:
+1. **Hiệu năng bứt phá mạnh mẽ ở các kịch bản nghẽn (Thiên xuất & Cân bằng)**:
+   - Ở các kịch bản cân bằng ($W_1, W_4, W_7$), SAC-PSO cải thiện vượt trội từ **+6.67%** (Small), **+11.33%** (Medium) đến **+13.56%** (Large) so với PSO chuẩn.
+   - Ở các kịch bản thiên xuất chịu tải nặng ($W_2, W_5, W_8$), áp lực dồn về Outbound Dock gây nghẽn nghiêm trọng cho các thuật toán truyền thống. SAC-PSO nhờ điều biến linh hoạt $w$ và $c_1, c_2$ đã giải phóng tắc nghẽn, cải thiện tới **+12.14%** ($W_5$) và **+14.97%** ($W_8$) so với PSO chuẩn, và giảm hơn **30% - 33%** Makespan so với FIFO.
+   - Ở các kịch bản thiên nhập ($W_3, W_6, W_9$), các thuật toán nhanh chóng đạt điểm hội tụ tiệm cận cận dưới lý thuyết do trạm Inbound phân bổ đồng đều với các Rack, SAC-PSO đạt Makespan tối ưu tuyệt đối với phương sai bằng 0.
+2. **Độ ổn định cực cao**:
+   - Hệ số phân tán SD (%) của SAC-PSO luôn được kiểm soát chặt dưới **3%** trên toàn bộ 9 instances.
+3. **Thời gian tính toán thời gian thực**:
+   - Thời gian CPU chỉ dao động từ **0.24s đến 1.64s**, hoàn toàn đáp ứng khả năng tái lập lịch trình trực tuyến trong môi trường kho công nghiệp.
+
+---
+
+## 8. Hướng dẫn Cài đặt & Khởi chạy
 
 ### Yêu cầu Môi trường:
 - Python 3.9+
